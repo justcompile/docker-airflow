@@ -26,6 +26,11 @@ if [ -e "/requirements.txt" ]; then
     $(which pip) install --user -r /requirements.txt
 fi
 
+# Runs bash file of /post-setup.sh if present
+if [ -e "/post-setup.sh" ]; then
+    $(which bash) /post-setup.sh
+fi
+
 # Update airflow config - Fernet key
 sed -i "s|\$FERNET_KEY|$FERNET_KEY|" "$AIRFLOW_HOME"/airflow.cfg
 
