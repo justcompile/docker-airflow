@@ -4,6 +4,9 @@ AIRFLOW_HOME="/usr/local/airflow"
 CMD="airflow"
 TRY_LOOP="20"
 
+: ${BROKER_TYPE:="rabbitmq"}
+: ${RABBITMQ_CONNECTION:=""}
+
 : ${REDIS_HOST:="redis"}
 : ${REDIS_PORT:="6379"}
 : ${REDIS_PASSWORD:=""}
@@ -59,22 +62,28 @@ fi
 # Update configuration depending the type of Executor
 if [ "$EXECUTOR" = "Celery" ]
 then
-  # Wait for Redis
-  if [ "$1" = "webserver" ] || [ "$1" = "worker" ] || [ "$1" = "scheduler" ] || [ "$1" = "flower" ] ; then
-    j=0
-    while ! nc -z $REDIS_HOST $REDIS_PORT >/dev/null 2>&1 < /dev/null; do
-      j=$((j+1))
-      if [ $j -ge $TRY_LOOP ]; then
-        echo "$(date) - $REDIS_HOST still not reachable, giving up"
-        exit 1
-      fi
-      echo "$(date) - waiting for Redis... $j/$TRY_LOOP"
-      sleep 5
-    done
+  if [ "$BROKER_TYPE" = "rabbitmq" ] 
+  then
+    BROKER_URI = "amqp://$RABBITMQ_CONNECTION"
+  else
+    # Wait for Redis
+    if [ "$1" = "webserver" ] || [ "$1" = "worker" ] || [ "$1" = "scheduler" ] || [ "$1" = "flower" ] ; then
+      j=0
+      while ! nc -z $REDIS_HOST $REDIS_PORT >/dev/null 2>&1 < /dev/null; do
+        j=$((j+1))
+        if [ $j -ge $TRY_LOOP ]; then
+          echo "$(date) - $REDIS_HOST still not reachable, giving up"
+          exit 1
+        fi
+        echo "$(date) - waiting for Redis... $j/$TRY_LOOP"
+        sleep 5
+      done
+    fi
+    BROKER_URI = "redis://$REDIS_PREFIX$REDIS_HOST:$REDIS_PORT/1"
   fi
   sed -i "s#celery_result_backend = db+postgresql://airflow:airflow@postgres/airflow#celery_result_backend = db+postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB#" "$AIRFLOW_HOME"/airflow.cfg
   sed -i "s#sql_alchemy_conn = postgresql+psycopg2://airflow:airflow@postgres/airflow#sql_alchemy_conn = postgresql+psycopg2://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB#" "$AIRFLOW_HOME"/airflow.cfg
-  sed -i "s#broker_url = redis://redis:6379/1#broker_url = redis://$REDIS_PREFIX$REDIS_HOST:$REDIS_PORT/1#" "$AIRFLOW_HOME"/airflow.cfg
+  sed -i "s#broker_url = redis://redis:6379/1#broker_url = $BROKER_URI#" "$AIRFLOW_HOME"/airflow.cfg
   if [ "$1" = "webserver" ]; then
     echo "Initialize database..."
     $CMD initdb
