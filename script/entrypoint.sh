@@ -64,7 +64,7 @@ if [ "$EXECUTOR" = "Celery" ]
 then
   if [ "$BROKER_TYPE" = "rabbitmq" ] 
   then
-    BROKER_URI = "amqp://$RABBITMQ_CONNECTION"
+    BROKER_URI="amqp://$RABBITMQ_CONNECTION"
   else
     # Wait for Redis
     if [ "$1" = "webserver" ] || [ "$1" = "worker" ] || [ "$1" = "scheduler" ] || [ "$1" = "flower" ] ; then
@@ -79,7 +79,7 @@ then
         sleep 5
       done
     fi
-    BROKER_URI = "redis://$REDIS_PREFIX$REDIS_HOST:$REDIS_PORT/1"
+    BROKER_URI="redis://$REDIS_PREFIX$REDIS_HOST:$REDIS_PORT/1"
   fi
   sed -i "s#celery_result_backend = db+postgresql://airflow:airflow@postgres/airflow#celery_result_backend = db+postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB#" "$AIRFLOW_HOME"/airflow.cfg
   sed -i "s#sql_alchemy_conn = postgresql+psycopg2://airflow:airflow@postgres/airflow#sql_alchemy_conn = postgresql+psycopg2://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB#" "$AIRFLOW_HOME"/airflow.cfg
